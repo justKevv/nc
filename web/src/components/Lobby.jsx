@@ -98,7 +98,7 @@ export function Lobby() {
     <div className="lobby">
       <div className="lobby-card">
         <h1>
-          <span className="logo">📓</span> nbcollab
+          <span className="logo">📓</span> nc.
         </h1>
         <p className="tagline">
           Shared Jupyter notebooks that run Python in the browser. Everyone edits the same
