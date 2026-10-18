@@ -8,7 +8,7 @@
 #
 # There is no KV namespace to create first: the room index is a Durable Object,
 # which is strongly consistent, so "delete all notebooks" sticks immediately.
-name = "nbcollab"
+name = "nc"
 main = "worker/index.js"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]

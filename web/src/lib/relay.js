@@ -8,7 +8,7 @@
  *
  * `VITE_RELAY_BASE` is the escape hatch for when they are not: pointing a local
  * `vite` at a deployed Worker, or serving the bundle from somewhere that cannot
- * hold a socket. Set it to an origin such as `https://nbcollab.example.workers.dev`
+ * hold a socket. Set it to an origin such as `https://nc.example.workers.dev`
  * and the API and socket follow it, while the app stays where it is.
  */
 const BASE = (import.meta.env?.VITE_RELAY_BASE || '').replace(/\/+$/, '')

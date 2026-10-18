@@ -58,7 +58,7 @@ them.
 ```bash
 npx wrangler login   # once
 npm run cloud        # run the real thing locally on :8787
-npm run deploy       # publish to https://nbcollab.<you>.workers.dev
+npm run deploy       # publish to https://nc.<you>.workers.dev
 ```
 
 You don't have to set anything up in Cloudflare first — the notebook list is
