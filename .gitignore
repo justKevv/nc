@@ -1,0 +1,10 @@
+node_modules/
+web/dist/
+
+# 75 MB of Pyodide, fetched by `npm run fetch:pyodide`. Deliberately not
+# committed: the app runs fine without it (it falls back to the CDN), and a
+# checkout that pulls this over a school VPN is worse than no copy at all.
+vendor/
+data/
+.DS_Store
+*.log
