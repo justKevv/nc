@@ -6,5 +6,8 @@ web/dist/
 # checkout that pulls this over a school VPN is worse than no copy at all.
 vendor/
 data/
+
+# `npm run cloud` keeps each local Durable Object's storage in here.
+.wrangler/
 .DS_Store
 *.log

@@ -251,6 +251,21 @@ async function probe(mirror) {
     `${mirror.name} did not answer`,
   )
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  // A host that answers every path with the app's index.html — a static host
+  // with a single-page fallback, or a deployment that simply has no vendored
+  // runtime — replies 200 here. Taking that for the runtime means importing HTML
+  // as a module and failing with a syntax error instead of moving on to the next
+  // mirror, so the reply has to actually look like JavaScript.
+  const type = res.headers.get('content-type') || ''
+  if (!/javascript|ecmascript/i.test(type)) {
+    throw new Error(`not the runtime (${type || 'no content-type'})`)
+  }
+  if (mirror.versioned === false) {
+    // Cheap sanity check that this is a loader and not a stub: Pyodide's is tens
+    // of kB, and a single-page fallback is not.
+    const body = await res.text()
+    if (body.length < 1000) throw new Error(`not the runtime (${body.length} bytes)`)
+  }
 }
 
 async function loadFrom(mirror) {

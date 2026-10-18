@@ -1,0 +1,41 @@
+# Deploying to Cloudflare: a Worker for the app and the lobby, plus a Durable
+# Object per notebook. Nothing here affects running it locally — `npm run dev`,
+# `npm start` and `npm run share` still use server/index.js.
+#
+#   npx wrangler login
+#   npm run cloud      # local workerd, serves the built app on :8787
+#   npm run deploy     # publish to *.workers.dev
+#
+# There is no KV namespace to create first: the room index is a Durable Object,
+# which is strongly consistent, so "delete all notebooks" sticks immediately.
+name = "nbcollab"
+main = "worker/index.js"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The built app is uploaded as static assets. A request that matches nothing
+# falls through to index.html, because every notebook URL is a client route.
+[assets]
+directory = "./web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[vars]
+# Same switch as the Node server: "0" hides the reset button and 403s the
+# endpoint, so a public deployment cannot be wiped by a student.
+NBCOLLAB_ALLOW_RESET = "1"
+
+# One instance, addressed by a fixed name: owns the lobby list.
+[[durable_objects.bindings]]
+name = "ROOMS_INDEX"
+class_name = "RoomsIndex"
+
+# One per notebook: owns the document and the sockets.
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "RoomServer"
+
+# SQLite-backed classes, which is what the free plan supports.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoomsIndex", "RoomServer"]

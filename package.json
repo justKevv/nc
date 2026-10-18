@@ -11,7 +11,9 @@
     "build": "vite build",
     "start": "npm run build && node server/index.js",
     "share": "npm run build && node server/index.js --tunnel",
-    "test": "node test/kernel.test.js && node test/notebook.test.js && node test/ink.test.js && node test/completions.test.js && node test/output-feed.test.js && node test/lobby.test.js && node test/protocol.test.js && node test/rooms-api.test.js",
+    "cloud": "npm run build && npx --yes wrangler@4 dev",
+    "deploy": "npm run build && npx --yes wrangler@4 deploy",
+    "test": "node test/kernel.test.js && node test/notebook.test.js && node test/ink.test.js && node test/completions.test.js && node test/output-feed.test.js && node test/lobby.test.js && node test/protocol.test.js && node test/rooms-api.test.js && node test/worker-cloud.test.js",
     "fetch:pyodide": "node scripts/fetch-pyodide.mjs"
   },
   "dependencies": {
