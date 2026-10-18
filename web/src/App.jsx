@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { identity, roomIdFromPath } from './lib/identity.js'
+import { relayUrl } from './lib/relay.js'
 import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 import { Lobby } from './components/Lobby.jsx'
 import { NotFound } from './components/NotFound.jsx'
@@ -26,7 +27,7 @@ export default function App() {
   useEffect(() => {
     if (!roomId) return
     let cancelled = false
-    fetch(`/api/rooms/${roomId}`)
+    fetch(relayUrl(`/api/rooms/${roomId}`))
       .then((res) => {
         if (!cancelled) setRoom(res.ok ? 'open' : 'missing')
       })

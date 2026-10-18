@@ -4,6 +4,7 @@ import { createProvider } from '../lib/collab.js'
 import { createKernel, nextRunId } from '../lib/kernel.js'
 import { useInkCanvas } from '../lib/ink.js'
 import { applyRemoteMessage } from '../lib/outputFeed.js'
+import { relayUrl } from '../lib/relay.js'
 
 // How long incoming peer output is held before being folded into the feed.
 // ~10 updates a second still reads as live, and it is the difference between a
@@ -271,7 +272,7 @@ export function Notebook({ roomId, me, onGone }) {
           // input fires per keystroke.
           clearTimeout(titleSave.current)
           titleSave.current = setTimeout(() => {
-            fetch(`/api/rooms/${roomId}`, {
+            fetch(relayUrl(`/api/rooms/${roomId}`), {
               method: 'PATCH',
               headers: { 'content-type': 'application/json' },
               body: JSON.stringify({ name: t }),

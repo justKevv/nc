@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { notebookUrl } from '../lib/identity.js'
 import { clearMyRooms, forgetRoom, listMyRooms, rememberRoom } from '../lib/myRooms.js'
 import { timeAgo } from '../lib/format.js'
+import { relayUrl } from '../lib/relay.js'
 
 export function Lobby() {
   const [name, setName] = useState('')
@@ -14,7 +15,7 @@ export function Lobby() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch('/api/rooms')
+      const res = await fetch(relayUrl('/api/rooms'))
       if (!res.ok) throw new Error(`server said ${res.status}`)
       const data = await res.json()
       setServer({ status: 'ready', rooms: data.rooms || [], canReset: data.canReset !== false })
@@ -53,7 +54,7 @@ export function Lobby() {
     setError('')
     try {
       const clean = name.trim() || 'Untitled notebook'
-      const res = await fetch('/api/rooms', {
+      const res = await fetch(relayUrl('/api/rooms'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: clean }),
@@ -79,7 +80,7 @@ export function Lobby() {
     setBusy(true)
     setError('')
     try {
-      const res = await fetch('/api/rooms', { method: 'DELETE' })
+      const res = await fetch(relayUrl('/api/rooms'), { method: 'DELETE' })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || `server said ${res.status}`)
       clearMyRooms()

@@ -1,6 +1,15 @@
 import * as Y from 'yjs'
 import * as awarenessProtocol from 'y-protocols/awareness'
 import { outputEnvelope } from './outputFeed.js'
+import { relaySocketUrl } from './relay.js'
+import {
+  awarenessMessage,
+  fromBase64 as fromB64,
+  pingMessage,
+  pongMessage,
+  toBase64 as toB64,
+  updateMessage,
+} from '../../../shared/protocol.js'
 
 const PING_MS = 5000
 const MAX_BACKOFF = 10000
@@ -25,9 +34,8 @@ export function createProvider({ roomId, user, doc, onPeers, onStatus, onOutput,
   }
 
   const url = () => {
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws'
     const params = new URLSearchParams({ name: user.name, color: user.color, userId: user.id })
-    return `${proto}://${location.host}/ws/rooms/${roomId}?${params}`
+    return relaySocketUrl(`/ws/rooms/${roomId}?${params}`)
   }
 
   function publishPeers() {
@@ -46,10 +54,10 @@ export function createProvider({ roomId, user, doc, onPeers, onStatus, onOutput,
     ws.onopen = () => {
       backoff = 500
       onStatus?.('connected')
-      pingTimer = setInterval(() => send({ type: 'ping', timestamp: Date.now() }), PING_MS)
+      pingTimer = setInterval(() => send(pingMessage(Date.now())), PING_MS)
       // Push our current doc state so a mid-session joiner catches us up,
       // and announce our presence.
-      send({ type: 'update', update_b64: toB64(Y.encodeStateAsUpdate(doc)) })
+      send(updateMessage(toB64(Y.encodeStateAsUpdate(doc))))
       pushAwareness()
     }
 
@@ -86,7 +94,7 @@ export function createProvider({ roomId, user, doc, onPeers, onStatus, onOutput,
           onOutput?.(msg)
           break
         case 'ping':
-          send({ type: 'pong', timestamp: msg.timestamp })
+          send(pongMessage(msg.timestamp))
           break
       }
     }
@@ -114,16 +122,13 @@ export function createProvider({ roomId, user, doc, onPeers, onStatus, onOutput,
   function pushAwareness() {
     const ids = [...awareness.getStates().keys()]
     if (!ids.length) return
-    send({
-      type: 'awareness',
-      update_b64: toB64(awarenessProtocol.encodeAwarenessUpdate(awareness, ids)),
-    })
+    send(awarenessMessage(toB64(awarenessProtocol.encodeAwarenessUpdate(awareness, ids))))
   }
 
   // Re-broadcast local doc edits, tagged as a local origin so we skip the echo.
   doc.on('update', (update, origin) => {
     if (origin === 'remote') return
-    send({ type: 'update', update_b64: toB64(update) })
+    send(updateMessage(toB64(update)))
   })
 
   awareness.on('update', ({ added, updated, removed }, origin) => {
@@ -151,23 +156,3 @@ export function createProvider({ roomId, user, doc, onPeers, onStatus, onOutput,
   }
 }
 
-const toB64 = (u8) => {
-  let s = ''
-  const chunk = 0x8000
-  for (let i = 0; i < u8.length; i += chunk) {
-    s += String.fromCharCode.apply(null, u8.subarray(i, i + chunk))
-  }
-  return btoa(s)
-}
-
-const fromB64 = (s) => {
-  if (typeof s !== 'string') return null
-  try {
-    const bin = atob(s)
-    const out = new Uint8Array(bin.length)
-    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
-    return out
-  } catch {
-    return null
-  }
-}
