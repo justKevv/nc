@@ -13,16 +13,11 @@
 const MAX_TEXT = 200000
 
 /**
- * The wire envelope for a relayed output message.
- *
- * `type` goes last on purpose. A kernel result carries a `type` field of its
- * own, and when that won the merge the server saw `{"type":"result"}`, matched
- * no case, and silently dropped every finished run — so peers watched the text
- * stream in and then sat on "is running…" forever.
+ * The wire envelope for a relayed output message now lives with the rest of the
+ * contract in `shared/protocol.js`; re-exported here so this module stays the
+ * one place the UI imports output handling from.
  */
-export function outputEnvelope(msg) {
-  return { ...msg, type: 'output' }
-}
+export { outputEnvelope } from '../../../shared/protocol.js'
 
 /** Does this entry have anything worth showing? */
 export function isVisible(output) {

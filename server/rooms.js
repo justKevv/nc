@@ -1,39 +1,9 @@
 import * as Y from 'yjs'
 import * as awarenessProtocol from 'y-protocols/awareness'
+import { seedDoc } from '../shared/room.js'
 import { loadDocState, saveDocState, setRoomMeta, getRoomMeta } from './store.js'
 
 const SAVE_DEBOUNCE_MS = 1500
-
-/** Matches the on-disk shape Jupyter uses, so notebooks round-trip with .ipynb. */
-function defaultCells() {
-  return [
-    {
-      type: 'markdown',
-      source:
-        '# Welcome\n\nThis notebook is shared with your class. Edit anything — everyone sees changes and live cursors in real time.\n\nUse **Shift+Enter** to run a cell, or press the play button.',
-    },
-    {
-      type: 'code',
-      source: 'print("hello from the browser!")\n\n# Python runs locally via Pyodide — no server needed.\n[n**2 for n in range(10)]',
-    },
-  ]
-}
-
-function seedDoc(doc, title) {
-  doc.transact(() => {
-    const cells = doc.getArray('cells')
-    for (const spec of defaultCells()) {
-      const cell = new Y.Map()
-      cell.set('id', Math.random().toString(36).slice(2, 10))
-      cell.set('type', spec.type)
-      const text = new Y.Text()
-      text.insert(0, spec.source)
-      cell.set('source', text)
-      cells.push([cell])
-    }
-    doc.getMap('meta').set('title', title || 'Untitled notebook')
-  })
-}
 
 class Room {
   constructor(id, title) {

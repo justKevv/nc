@@ -7,6 +7,20 @@ import { WebSocketServer } from 'ws'
 import * as Y from 'yjs'
 import * as awarenessProtocol from 'y-protocols/awareness'
 import { getRoom, resetAllRooms, saveAll } from './rooms.js'
+import { newRoomId } from '../shared/room.js'
+import {
+  OUTPUT_CAPS,
+  awarenessMessage,
+  connectionMessage,
+  fromBase64 as fromB64,
+  pingMessage,
+  pongMessage,
+  sanitizeOutput,
+  str,
+  syncMessage,
+  toBase64 as toB64,
+  updateMessage,
+} from '../shared/protocol.js'
 import {
   listRooms,
   setRoomMeta,
@@ -117,15 +131,6 @@ function servePyodide(rel, res) {
   fs.createReadStream(file).pipe(res)
 }
 
-function newRoomId(name) {
-  const slug = String(name)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 24)
-  return `${slug || 'room'}-${Math.random().toString(36).slice(2, 7)}`
-}
-
 function json(res, code, body) {
   res.writeHead(code)
   res.end(JSON.stringify(body))
@@ -173,73 +178,9 @@ function serveStatic(pathname, res) {
 /* ------------------------------------------------------------------ *
  * WebSocket: same envelope shape PyTogether uses
  *   { type: 'update' | 'sync' | 'awareness' | 'output' | 'ping' | 'pong', ... }
+ * The envelopes and the size caps themselves live in shared/protocol.js, so
+ * this relay and the Cloudflare one cannot drift apart.
  * ------------------------------------------------------------------ */
-
-const OUTPUT_CAPS = {
-  text: 32 * 1024, // one streamed chunk
-  field: 128 * 1024, // stdout / stderr / traceback in a final result
-  repr: 16 * 1024,
-  html: 128 * 1024,
-  image: 4 * 1024 * 1024,
-  images: 4,
-  chunksPerSecond: 250,
-  // How much of a flooded stream is held while waiting for budget. Comfortably
-  // more than a cell can legitimately produce (the runner itself stops at
-  // 200 kB), so a burst is delayed rather than discarded.
-  held: 256 * 1024,
-}
-
-const str = (v, max) =>
-  typeof v === 'string' ? v.slice(0, max) : ''
-
-/**
- * Output is relayed, never interpreted — but it does come from a browser, so it
- * is trimmed and stripped before it reaches the rest of the class. Peers render
- * `html` straight into the DOM, so a script tag or an inline handler coming off
- * the wire is the one thing worth refusing.
- */
-function sanitizeOutput(msg, conn) {
-  const event = ['start', 'chunk', 'result', 'end'].includes(msg.event) ? msg.event : null
-  if (!event) return null
-
-  const out = {
-    type: 'output',
-    event,
-    cellId: str(msg.cellId, 64),
-    runId: str(msg.runId, 64),
-    userId: conn.userId,
-    name: conn.name,
-    color: conn.color,
-  }
-
-  if (event === 'chunk') {
-    out.stream = msg.stream === 'stderr' ? 'stderr' : 'stdout'
-    out.text = str(msg.text, OUTPUT_CAPS.text)
-    return out
-  }
-
-  if (event === 'result') {
-    const html = str(msg.html, OUTPUT_CAPS.html)
-    out.stdout = str(msg.stdout, OUTPUT_CAPS.field)
-    out.stderr = str(msg.stderr, OUTPUT_CAPS.field)
-    out.error = str(msg.error, OUTPUT_CAPS.field)
-    out.repr = str(msg.repr, OUTPUT_CAPS.repr)
-    out.durationMs = Number.isFinite(msg.durationMs) ? Math.min(msg.durationMs, 1e7) : null
-    out.images = Array.isArray(msg.images)
-      ? msg.images
-          .slice(0, OUTPUT_CAPS.images)
-          .filter((src) => typeof src === 'string' && src.startsWith('data:image/') && src.length <= OUTPUT_CAPS.image)
-      : []
-    out.html = html
-      .replace(/<\s*(script|style|iframe|object|embed|link|meta)[\s\S]*?>/gi, '')
-      .replace(/<\s*\/(?:script|style|iframe|object|embed|link|meta)\s*>/gi, '')
-      .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-      .replace(/(href|src)\s*=\s*("|')?\s*javascript:[^"'\s>]*/gi, '$1="#"')
-    return out
-  }
-
-  return out
-}
 
 const wss = new WebSocketServer({ noServer: true })
 
@@ -284,18 +225,18 @@ wss.on('connection', (ws, req, roomId, url) => {
   }
   room.awareness.on('update', onAwarenessChange)
 
-  send(ws, { type: 'sync', update_b64: toB64(Y.encodeStateAsUpdate(room.doc)) })
-  send(ws, { type: 'connection', peers: room.peers(), docName: roomId })
+  send(ws, syncMessage(toB64(Y.encodeStateAsUpdate(room.doc))))
+  send(ws, connectionMessage({ peers: room.peers(), docName: roomId }))
 
   // Hand the newcomer everyone's current presence. Without this they'd see no
   // remote cursors until someone happened to move, because awareness updates
   // are only relayed at the moment they change.
   const known = [...room.awareness.getStates().keys()]
   if (known.length) {
-    send(ws, {
-      type: 'awareness',
-      update_b64: toB64(awarenessProtocol.encodeAwarenessUpdate(room.awareness, known)),
-    })
+    send(
+      ws,
+      awarenessMessage(toB64(awarenessProtocol.encodeAwarenessUpdate(room.awareness, known))),
+    )
   }
 
   // Output can arrive in bursts — a chatty cell streams many chunks a second —
@@ -349,15 +290,26 @@ wss.on('connection', (ws, req, roomId, url) => {
       case 'update': {
         const update = fromB64(msg.update_b64)
         if (!update) return
-        Y.applyUpdate(room.doc, update, conn)
+        // A frame that is valid base64 but not a Yjs update throws in here; it
+        // must not take the room down with it.
+        try {
+          Y.applyUpdate(room.doc, update, conn)
+        } catch (err) {
+          console.warn(`[ws ${roomId}] ignored a bad update: ${err.message}`)
+          return
+        }
         setRoomMeta(roomId, {})
-        broadcast(room, JSON.stringify({ type: 'update', update_b64: msg.update_b64 }), conn)
+        broadcast(room, JSON.stringify(updateMessage(msg.update_b64)), conn)
         break
       }
       case 'awareness': {
         const update = fromB64(msg.update_b64)
         if (!update) return
-        awarenessProtocol.applyAwarenessUpdate(room.awareness, update, conn)
+        try {
+          awarenessProtocol.applyAwarenessUpdate(room.awareness, update, conn)
+        } catch (err) {
+          console.warn(`[ws ${roomId}] ignored a bad awareness update: ${err.message}`)
+        }
         break
       }
       case 'output': {
@@ -396,7 +348,7 @@ wss.on('connection', (ws, req, roomId, url) => {
         break
       }
       case 'ping':
-        send(ws, { type: 'pong', timestamp: msg.timestamp })
+        send(ws, pongMessage(msg.timestamp))
         break
       case 'pong':
         // The client's reply to our heartbeat. There is nothing to do with it,
@@ -411,7 +363,7 @@ wss.on('connection', (ws, req, roomId, url) => {
     }
   })
 
-  const heartbeat = setInterval(() => send(ws, { type: 'ping', timestamp: Date.now() }), 25000)
+  const heartbeat = setInterval(() => send(ws, pingMessage(Date.now())), 25000)
 
   const cleanup = () => {
     clearInterval(heartbeat)
@@ -437,7 +389,7 @@ wss.on('connection', (ws, req, roomId, url) => {
 function encodeAwareness(room, clients) {
   if (!clients.length) return null
   const encoded = awarenessProtocol.encodeAwarenessUpdate(room.awareness, clients)
-  return JSON.stringify({ type: 'awareness', update_b64: toB64(encoded) })
+  return JSON.stringify(awarenessMessage(toB64(encoded)))
 }
 
 function send(ws, msg) {
@@ -448,16 +400,6 @@ function broadcast(room, raw, except) {
   for (const c of room.conns) {
     if (c === except) continue
     if (c.ws.readyState === c.ws.OPEN) c.ws.send(raw)
-  }
-}
-
-const toB64 = (u8) => Buffer.from(u8).toString('base64')
-const fromB64 = (s) => {
-  if (typeof s !== 'string') return null
-  try {
-    return new Uint8Array(Buffer.from(s, 'base64'))
-  } catch {
-    return null
   }
 }
 
