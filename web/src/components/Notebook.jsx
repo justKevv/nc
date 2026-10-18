@@ -294,11 +294,13 @@ export function Notebook({ roomId, me, onGone }) {
 
       <div className="body">
         <main className="notebook" ref={notebookRef}>
-          <canvas
-            ref={ink.canvasRef}
-            className={ink.armed ? 'ink armed' : 'ink'}
-            {...ink.handlers}
-          />
+          <div className="ink-layer">
+            <canvas
+              ref={ink.canvasRef}
+              className={ink.armed ? 'ink armed' : 'ink'}
+              {...ink.handlers}
+            />
+          </div>
           {cellMaps.map((ymap, index) => (
             <Cell
               key={ymap.get('id')}

@@ -402,13 +402,23 @@ button.run { padding: 2px 8px; color: var(--accent); border-color: var(--accent)
 
 /* --------------------------------- ink ------------------------------- */
 
-/* The overlay sits in the notebook's scroll container and paints in content
-   space, so it stays glued to the cells as the view scrolls. */
+/* The overlay is pinned to the notebook's *scrollport*, not to its content:
+   a zero-height sticky box keeps the canvas sitting still while the cells
+   scroll behind it. The canvas paints in content space (scroll offset taken
+   out in redraw), so the strokes stay glued to the cells underneath. Let it
+   be absolute instead and the offset gets applied twice — ink drifts at twice
+   the scroll speed. */
+.ink-layer {
+  position: sticky;
+  top: 0;
+  left: 0;
+  height: 0;
+  z-index: 5;
+}
 .ink {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 5;
   pointer-events: none;
 }
 .ink.armed {
