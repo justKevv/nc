@@ -40,6 +40,49 @@ Press `Ctrl+C` to shut down — the tunnel closes and everything is saved to dis
 
 ---
 
+## Two ways to run it
+
+The same app runs two ways, and everything above is the first one:
+
+| | Where the relay runs | What you get | What to run |
+| --- | --- | --- | --- |
+| **Your laptop** | `server/index.js`, notebooks in `data/` | Instant, offline-capable, your files on your disk | `npm run dev`, `npm start`, `npm run share` |
+| **Cloudflare** | A Worker plus a Durable Object per notebook | A permanent URL, no laptop left running, nothing to keep up | `npm run cloud`, `npm run deploy` |
+
+Both speak the same protocol — the envelopes, the size caps and the output
+sanitising live once, in `shared/protocol.js`, and both relays import them — so a
+class on one keeps working if you move it to the other.
+
+### Deploying to Cloudflare
+
+```bash
+npx wrangler login   # once
+npm run cloud        # local workerd: builds the app, serves it on :8787
+npm run deploy       # publishes to https://nbcollab.<you>.workers.dev
+```
+
+No KV namespace, bucket or database to create first: the notebook index is itself
+a Durable Object, addressed by a fixed name, so "delete all notebooks" is applied
+immediately rather than after a cache expires. `wrangler.toml` holds the whole
+configuration — one Worker, `RoomsIndex` for the lobby list, `RoomServer` per
+notebook, and `web/dist` uploaded as static assets.
+
+Two differences worth knowing about, both deliberate:
+
+- **Python comes from the CDN.** The Worker has no `vendor/pyodide` to serve, so
+  `/pyodide/` answers 404 and the kernel falls through to jsDelivr, then unpkg.
+  Vendoring it in the cloud would mean uploading 75 MB of assets. If your
+  classroom is offline, run it locally instead.
+- **A cursor lingers for up to 30 seconds after its author leaves.** The Node
+  relay can drop a peer's presence the moment its socket closes, because it holds
+  the awareness state itself; the Durable Object relays presence without decoding
+  it, so the browsers expire a silent peer on their own timer instead. Everything
+  else about a disconnecting student is instant.
+- **Set `NBCOLLAB_ALLOW_RESET = "0"` in `wrangler.toml` for a public
+  deployment**, or anyone who finds the URL can wipe every notebook.
+
+---
+
 ## How a lesson actually runs
 
 1. You run `npm run share` and copy the printed link.
@@ -329,7 +372,8 @@ materialising an empty notebook, which is what makes the wipe stick.
 | **Yjs** (CRDT) | The notebook is a `Y.Array` of `Y.Map` cells, each with a `Y.Text` body. Concurrent edits merge automatically instead of clobbering each other. |
 | **CodeMirror 6** + `y-codemirror.next` | The editor, bound straight to the shared `Y.Text`, which gives live remote cursors and selections. |
 | **Node + `ws`** | Relays CRDT updates, serves the lobby's room list, and refuses sockets to rooms that no longer exist. It only forwards bytes and never interprets code. |
-| **Cloudflare tunnel** | Makes your localhost reachable over HTTPS, so browsers accept the WebSocket. |
+| **Durable Objects** | The same job in the cloud: `RoomServer` per notebook, `RoomsIndex` for the lobby. Sockets hibernate, so an idle class costs nothing. |
+| **Cloudflare tunnel** | Makes your localhost reachable over HTTPS, so browsers accept the WebSocket. Not needed when you deploy. |
 
 The wire protocol deliberately mirrors PyTogether's shape, since that is what the
 original uses:
@@ -357,11 +401,19 @@ shared type in the same document.
 ```
 scripts/
   fetch-pyodide.mjs Vendors the Python runtime and common wheels into vendor/
+shared/
+  protocol.js       The wire contract both relays speak: envelopes, caps, sanitising
+  room.js           Room ids and the seed notebook, so both relays seed identically
 server/
   index.js          HTTP + WebSocket server, static hosting, /pyodide/, REST API
   rooms.js          In-memory Yjs docs, presence, debounced saves
   store.js          Disk persistence (data/rooms/*.ydoc), room metadata, wipe
   tunnel.js         Cloudflare quick-tunnel wrapper
+worker/
+  index.js          Worker: static assets, the lobby API, routing a socket to a room
+  room.js           RoomServer: one Durable Object per notebook, hibernating sockets
+  rooms-index.js    RoomsIndex: the lobby list, in one strongly consistent object
+wrangler.toml       The whole Cloudflare deployment: bindings, migrations, assets
 web/src/
   components/
     Notebook.jsx    Main container: doc, provider, kernel, cell list
@@ -373,6 +425,7 @@ web/src/
     NotFound.jsx    Shown for a link to a notebook that no longer exists
   lib/
     collab.js       WebSocket provider (sync, awareness, reconnect)
+    relay.js        Where the relay is: same origin, or VITE_RELAY_BASE
     ink.js          Shared ink layer: strokes in Yjs, canvas overlay, tools
     completions.js  Python keywords, builtins, magics, notebook names, members
     attrs.js        What may be looked up: a plain dotted name, nothing else
@@ -394,6 +447,7 @@ test/
   lobby.test.js     The browser's own notebook list, and how it ages
   protocol.test.js  End-to-end sync/ink/output-relay/persistence tests
   rooms-api.test.js Room creation, rename, reset, and the websocket gate
+  worker-cloud.test.js  The Worker and both Durable Objects, driven in Node
 ```
 
 ---
@@ -415,6 +469,17 @@ unknown code is refused rather than conjured into an empty room, that a wipe
 deletes the files, 404s the links, disconnects live editors with code `4004` and
 does not let the closing socket save the room back, and that
 `NBCOLLAB_ALLOW_RESET=0` takes the button and the endpoint away.
+
+`worker-cloud.test.js` runs the Cloudflare side the same way, with the three
+runtime pieces it needs faked (a socket pair, a `Response` that may carry
+`status: 101`, and `ctx.storage`): creating and renaming notebooks, refusing a
+socket to a notebook that does not exist, relaying edits, output and presence,
+answering a ping, delaying a flood instead of dropping it, surviving an eviction
+with the document — and its numbered chunks — intact, and wiping a room out from
+under its clients.
+
+`npm run cloud` puts that code under real `workerd` on `:8787` when you want to
+see it work outside a fake.
 
 There is also a browser-level check of the cell chrome, which is the only place
 the reorder path can really be verified — it was a Yjs crash, not a layout bug:
