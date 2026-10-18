@@ -1,0 +1,474 @@
+:root {
+  --bg: #f7f7f5;
+  --panel: #fff;
+  --border: #e2e2dd;
+  --text: #1f2328;
+  --muted: #7a8288;
+  --accent: #2f6f4f;
+  --accent-soft: #e8f2ec;
+  --code-bg: #fbfbfa;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+button {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+button:hover:not(:disabled) { background: #f0f0ec; }
+button:disabled { opacity: 0.4; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary:hover { background: #275c42; }
+button.secondary { background: #fff; }
+button.link {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  padding: 2px 0;
+  text-decoration: underline;
+  font-size: 12px;
+}
+button.danger-button {
+  background: #b4413a;
+  border-color: #b4413a;
+  color: #fff;
+}
+button.danger-button:hover:not(:disabled) { background: #9a3731; }
+button.icon { border: 0; background: none; font-size: 20px; line-height: 1; padding: 0 4px; }
+
+input, select {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+code { font-family: var(--mono); font-size: 12px; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.error { color: #b4413a; }
+.row { display: flex; gap: 6px; }
+.row > input { flex: 1; }
+
+/* ------------------------------- lobby ------------------------------- */
+
+.lobby {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+}
+.lobby-card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.lobby-card h1 { margin: 0 0 6px; font-size: 24px; }
+.lobby-card .logo { font-size: 22px; }
+.tagline { color: var(--muted); margin: 0 0 22px; }
+.lobby-form { display: flex; flex-direction: column; gap: 8px; }
+.lobby-form label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.lobby-form button { padding: 8px; }
+.divider {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 18px 0;
+  position: relative;
+}
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--border);
+  z-index: 0;
+}
+.divider { background: var(--panel); }
+.divider > * { position: relative; }
+
+.notice { color: var(--accent); margin: 0; }
+
+/* Anchors that should read as buttons — the notebook list is links, but "Open"
+   and "Start or open a notebook" are actions. */
+a.button {
+  display: inline-block;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+}
+a.button:hover { background: #f0f0ec; }
+a.button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+a.button.primary:hover { background: #275c42; }
+a.button.secondary { background: #fff; }
+
+/* ------------------------- your notebooks ------------------------- */
+
+.lobby-card h2 { margin: 0 0 4px; font-size: 16px; }
+.lobby-card.rooms { padding: 20px 22px; }
+.lobby-card.rooms .muted { margin: 0 0 14px; }
+
+.room-list { list-style: none; margin: 0; padding: 0; }
+.room-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+}
+.room-list li:first-child { border-top: 0; }
+.room-list li.gone { opacity: 0.55; }
+.room-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.room-name {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+a.room-name:hover { text-decoration: underline; }
+.room-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+.lobby-card.danger { border-color: #e6c9c6; }
+
+/* ------------------------------ toolbar ------------------------------ */
+
+.app { display: flex; flex-direction: column; height: 100%; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.toolbar .left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.toolbar .right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.toolbar .title {
+  font-weight: 600;
+  border-color: transparent;
+  background: transparent;
+  min-width: 180px;
+}
+.toolbar .title:hover { border-color: var(--border); background: var(--panel); }
+
+.peers { display: flex; }
+.peer {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--panel);
+  margin-left: -7px;
+}
+.peer:first-child { margin-left: 0; }
+.peer.more { background: var(--muted); }
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.status i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.status.connected i { background: #3fa65c; }
+.status.connecting i { background: #c9a227; }
+.status.disconnected i { background: #b4413a; }
+
+.menu-wrap { position: relative; display: inline-block; }
+.menu-wrap > summary { list-style: none; cursor: pointer; }
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  min-width: 210px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.menu > button { text-align: left; }
+.pip-menu label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  padding: 2px 7px;
+  font-size: 11px;
+  border-radius: 20px;
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+/* ------------------------------ notebook ----------------------------- */
+
+.body { display: flex; flex: 1; min-height: 0; }
+
+.notebook {
+  flex: 1;
+  position: relative;
+  overflow-y: auto;
+  /* Overlay scrollbars: the pane still scrolls, it just stops drawing a bar
+     down the edge of the notebook on every platform. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 20px 20px 120px;
+  max-width: 980px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.cell {
+  display: flex;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.cell.busy { border-color: var(--accent); }
+.cell.markdown { background: #fdfdfc; }
+
+.gutter {
+  flex: 0 0 74px;
+  background: var(--code-bg);
+  border-right: 1px solid var(--border);
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.prompt { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+button.run { padding: 2px 8px; color: var(--accent); border-color: var(--accent); }
+
+.cell-main { flex: 1; min-width: 0; padding: 4px 0 6px; }
+
+.cell-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.cell:hover .cell-toolbar { opacity: 1; }
+.cell-toolbar button, .cell-toolbar select { padding: 1px 6px; font-size: 11px; }
+.cell-toolbar select { font-size: 11px; padding: 1px 4px; }
+
+.editor { padding: 0 8px; }
+.editor .cm-editor { background: transparent; }
+.editor .cm-gutters { display: none; }
+.editor .cm-content { padding: 4px 0; }
+
+.md-preview { padding: 4px 12px 10px; }
+.md-preview h1 { font-size: 22px; margin: 8px 0; }
+.md-preview h2 { font-size: 18px; margin: 8px 0; }
+.md-preview h3 { font-size: 15px; margin: 6px 0; }
+.md-preview p { margin: 6px 0; }
+.md-preview code {
+  background: var(--code-bg);
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.md-preview pre {
+  background: var(--code-bg);
+  padding: 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.md-preview pre code { background: none; border: 0; padding: 0; }
+.md-preview ul, .md-preview ol { margin: 6px 0; padding-left: 22px; }
+.md-preview table { border-collapse: collapse; }
+.md-preview td, .md-preview th { border: 1px solid var(--border); padding: 3px 8px; }
+
+.output {
+  padding: 8px 12px 2px;
+  border-top: 1px dashed var(--border);
+  margin-top: 6px;
+}
+.output pre {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  margin: 0 0 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.output .stdout { color: var(--text); }
+.output .stderr, .output .traceback pre { color: #b4413a; }
+.output .repr { color: #2c5f8a; }
+.output img { max-width: 100%; border-radius: 6px; margin: 6px 0; }
+
+/* The feed under a cell: your result, then one entry per other person. They are
+   separated by a hairline and a name rather than by boxes, so it reads as one
+   block of output that happens to have speakers. */
+.out-entry.remote {
+  padding-left: 10px;
+  border-left: 3px solid var(--border);
+}
+.out-entry .who {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  margin-bottom: 3px;
+}
+.out-entry .who-name { font-weight: 700; }
+.out-entry .timing { font-size: 11px; color: var(--muted); }
+
+.dots { animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0.2; } }
+
+.add-cell {
+  display: block;
+  width: 100%;
+  padding: 9px;
+  color: var(--muted);
+  border-style: dashed;
+  background: transparent;
+}
+.add-cell + .add-cell { margin-top: 6px; }
+.add-cell:hover { color: var(--accent); border-color: var(--accent); background: transparent; }
+.add-cell.ghost { font-size: 12px; }
+
+.notebook::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+/* ----------------------- other students' output ----------------------- */
+
+/* One result occupies the .output region above; see .out-entry. */
+
+.crash {
+  max-width: 640px;
+  margin: 60px auto;
+  padding: 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.crash h2 { margin-top: 0; font-size: 17px; }
+.crash pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+/* --------------------------------- ink ------------------------------- */
+
+/* The overlay sits in the notebook's scroll container and paints in content
+   space, so it stays glued to the cells as the view scrolls. */
+.ink {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.ink.armed {
+  pointer-events: auto;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.ink-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+.ink-bar .tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 9px;
+  line-height: 0;
+}
+.ink-bar .tool svg { display: block; }
+.ink-hint { font-size: 12px; color: var(--muted); margin-left: 4px; }
+.ink-bar .tool.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ink-bar .tool.danger:hover { border-color: #b4413a; color: #b4413a; }
+.ink-bar input[type='color'] {
+  width: 34px;
+  height: 26px;
+  padding: 1px 2px;
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.kernel-log {
+  max-height: 110px;
+  overflow-y: auto;
+  background: #1f2328;
+  color: #c9d1d9;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 6px 12px;
+}
+.kernel-log .err { color: #ff9492; }
+.boot-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px solid #ff9492;
+  border-radius: 6px;
+  background: #3d2226;
+  color: #ffb4ae;
+}
+.boot-error code { color: #fff; }
+
+@media (max-width: 720px) {
+  .gutter { flex-basis: 56px; }
+  .notebook { padding: 12px 10px 80px; }
+}
